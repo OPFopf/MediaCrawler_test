@@ -86,7 +86,7 @@ async def update_weibo_note(note_item: Dict):
         # 用户信息
         "user_id": str(user_info.get("id")),
         "nickname": user_info.get("screen_name", ""),
-        "gender": user_info.get("gender", ""),
+        'gender': '女' if user_info.get('gender') == "f" else '男',
         "profile_url": user_info.get("profile_url", ""),
         "avatar": user_info.get("profile_image_url", ""),
         "source_keyword": source_keyword_var.get(),
@@ -127,7 +127,9 @@ async def update_weibo_note_comment(note_id: str, comment_item: Dict):
     user_info: Dict = comment_item.get("user")
     content_text = comment_item.get("text")
     clean_text = re.sub(r"<.*?>", "", content_text)
+    pic_url = comment_item.get('pic', {}).get('url') if comment_item.get('pic') else None
     save_comment_item = {
+
         "comment_id": comment_id,
         "create_time": utils.rfc2822_to_timestamp(comment_item.get("created_at")),
         "create_date_time": str(utils.rfc2822_to_china_datetime(comment_item.get("created_at"))),
@@ -138,11 +140,11 @@ async def update_weibo_note_comment(note_id: str, comment_item: Dict):
         "last_modify_ts": utils.get_current_timestamp(),
         "ip_location": comment_item.get("source", "").replace("来自", ""),
         "parent_comment_id": comment_item.get("rootid", ""),
-
+        "pictures":"https://"+pic_url,
         # 用户信息
         "user_id": str(user_info.get("id")),
         "nickname": user_info.get("screen_name", ""),
-        "gender": user_info.get("gender", ""),
+        'gender': '女' if user_info.get('gender') == "f" else '男',
         "profile_url": user_info.get("profile_url", ""),
         "avatar": user_info.get("profile_image_url", ""),
     }
