@@ -101,12 +101,14 @@ async def update_bilibili_video_comment(video_id: str, comment_item: Dict):
     content: Dict = comment_item.get("content")
     user_info: Dict = comment_item.get("member")
     like_count: int = comment_item.get("like", 0)
+    content_pictures = [item.get("img_src", "") for item in content.get("pictures", [])]
     save_comment_item = {
         "comment_id": comment_id,
         "parent_comment_id": parent_comment_id,
         "create_time": comment_item.get("ctime"),
         "video_id": str(video_id),
         "content": content.get("message"),
+        "pictures": ",".join(content_pictures),  # 评论图片
         "user_id": user_info.get("mid"),
         "nickname": user_info.get("uname"),
         "sex": user_info.get("sex"),
