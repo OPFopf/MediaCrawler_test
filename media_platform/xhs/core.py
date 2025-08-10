@@ -167,7 +167,19 @@ class XiaoHongShuCrawler(AbstractCrawler):
                 except DataFetchError:
                     utils.logger.error("[XiaoHongShuCrawler.search] Get note detail error")
                     break
-
+    async def get_gender_by_user_id(self,user_id:str)->str:
+        creator: Dict = await self.xhs_client.get_creator_info(user_id=user_id)
+        user_info = creator.get('basicInfo', {})
+        def get_gender(gender):
+            if gender == 1:
+                return '女'
+            elif gender == 0:
+                return '男'
+            else:
+                return '未知'
+        gender=get_gender(user_info.get('gender'))
+        utils.logger.info(f"性别信息{gender}")
+        return gender
     async def get_creators_and_notes(self) -> None:
         """Get creator's notes and retrieve their comment information."""
         utils.logger.info("[XiaoHongShuCrawler.get_creators_and_notes] Begin get xiaohongshu creators")
@@ -306,6 +318,23 @@ class XiaoHongShuCrawler(AbstractCrawler):
             task_list.append(task)
         await asyncio.gather(*task_list)
 
+    async def batch_update_xhs_note_comments(self,note_id: str, comments: List[Dict]):
+        """
+        批量更新小红书笔记评论
+        Args:
+            note_id:
+            comments:
+
+        Returns:
+        """
+        if not comments:
+            return
+        for comment_item in comments:
+            user_info = comment_item.get("user_info", {})
+            user_id=user_info.get("user_id")
+            gender=await self.get_gender_by_user_id(user_id=user_id)
+            await xhs_store.update_xhs_note_comment(note_id, comment_item,gender)
+
     async def get_comments(self, note_id: str, xsec_token: str, semaphore: asyncio.Semaphore):
         """Get note comments with keyword filtering and quantity limitation"""
         async with semaphore:
@@ -319,7 +348,7 @@ class XiaoHongShuCrawler(AbstractCrawler):
                 note_id=note_id,
                 xsec_token=xsec_token,
                 crawl_interval=crawl_interval,
-                callback=xhs_store.batch_update_xhs_note_comments,
+                callback=self.batch_update_xhs_note_comments,
                 max_count=CRAWLER_MAX_COMMENTS_COUNT_SINGLENOTES,
             )
 
@@ -453,7 +482,6 @@ class XiaoHongShuCrawler(AbstractCrawler):
             if not url:
                 continue
             content = await self.xhs_client.get_note_media(url)
-            await asyncio.sleep(random.random())
             if content is None:
                 continue
             extension_file_name = f"{picNum}.jpg"
@@ -477,9 +505,9 @@ class XiaoHongShuCrawler(AbstractCrawler):
         videoNum = 0
         for url in videos:
             content = await self.xhs_client.get_note_media(url)
-            await asyncio.sleep(random.random())
             if content is None:
                 continue
             extension_file_name = f"{videoNum}.mp4"
             videoNum += 1
             await xhs_store.update_xhs_note_video(note_id, content, extension_file_name)
+
