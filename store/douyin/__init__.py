@@ -174,15 +174,7 @@ async def update_douyin_aweme(aweme_item: Dict):
     utils.logger.info(f"[store.douyin.update_douyin_aweme] douyin aweme id:{aweme_id}, title:{save_content_item.get('title')}")
     await DouyinStoreFactory.create_store().store_content(content_item=save_content_item)
 
-
-async def batch_update_dy_aweme_comments(aweme_id: str, comments: List[Dict]):
-    if not comments:
-        return
-    for comment_item in comments:
-        await update_dy_aweme_comment(aweme_id, comment_item)
-
-
-async def update_dy_aweme_comment(aweme_id: str, comment_item: Dict):
+async def update_dy_aweme_comment(aweme_id: str, comment_item: Dict, gender:str):
     comment_aweme_id = comment_item.get("aweme_id")
     if aweme_id != comment_aweme_id:
         utils.logger.error(f"[store.douyin.update_dy_aweme_comment] comment_aweme_id: {comment_aweme_id} != aweme_id: {aweme_id}")
@@ -203,11 +195,13 @@ async def update_dy_aweme_comment(aweme_id: str, comment_item: Dict):
         "user_unique_id": user_info.get("unique_id"),
         "user_signature": user_info.get("signature"),
         "nickname": user_info.get("nickname"),
+        "gender": gender,
         "avatar": avatar_info.get("url_list", [""])[0],
         "sub_comment_count": str(comment_item.get("reply_comment_total", 0)),
         "like_count": (comment_item.get("digg_count") if comment_item.get("digg_count") else 0),
         "last_modify_ts": utils.get_current_timestamp(),
         "parent_comment_id": parent_comment_id,
+        
         "pictures": ",".join(_extract_comment_image_list(comment_item)),
     }
     utils.logger.info(f"[store.douyin.update_dy_aweme_comment] douyin aweme comment: {comment_id}, content: {save_comment_item.get('content')}")
@@ -264,3 +258,4 @@ async def update_dy_aweme_video(aweme_id, video_content, extension_file_name):
     """
 
     await DouYinVideo().store_video({"aweme_id": aweme_id, "video_content": video_content, "extension_file_name": extension_file_name})
+
