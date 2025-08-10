@@ -12,7 +12,7 @@
 # @Author  : relakkes@gmail.com
 # @Time    : 2024/1/14 17:34
 # @Desc    :
-from typing import List
+from typing import List,Optional,Callable
 
 import config
 from var import source_keyword_var
@@ -113,23 +113,7 @@ async def update_xhs_note(note_item: Dict):
     await XhsStoreFactory.create_store().store_content(local_db_item)
 
 
-async def batch_update_xhs_note_comments(note_id: str, comments: List[Dict]):
-    """
-    批量更新小红书笔记评论
-    Args:
-        note_id:
-        comments:
-
-    Returns:
-
-    """
-    if not comments:
-        return
-    for comment_item in comments:
-        await update_xhs_note_comment(note_id, comment_item)
-
-
-async def update_xhs_note_comment(note_id: str, comment_item: Dict):
+async def update_xhs_note_comment(note_id: str, comment_item: Dict,gender:str):
     """
     更新小红书笔记评论
     Args:
@@ -151,6 +135,7 @@ async def update_xhs_note_comment(note_id: str, comment_item: Dict):
         "content": comment_item.get("content"),  # 评论内容
         "user_id": user_info.get("user_id"),  # 用户id
         "nickname": user_info.get("nickname"),  # 用户昵称
+        "gender":gender,
         "avatar": user_info.get("image"),  # 用户头像
         "sub_comment_count": comment_item.get("sub_comment_count", 0),  # 子评论数
         "pictures": ",".join(comment_pictures),  # 评论图片
@@ -162,7 +147,7 @@ async def update_xhs_note_comment(note_id: str, comment_item: Dict):
     await XhsStoreFactory.create_store().store_comment(local_db_item)
 
 
-async def save_creator(user_id: str, creator: Dict):
+async def save_creator(user_id: str, creator: Dict)->str:
     """
     保存小红书创作者
     Args:
@@ -184,7 +169,6 @@ async def save_creator(user_id: str, creator: Dict):
             fans = i.get('count')
         elif i.get('type') == 'interaction':
             interaction = i.get('count')
-
     def get_gender(gender):
         if gender == 1:
             return '女'
@@ -192,11 +176,11 @@ async def save_creator(user_id: str, creator: Dict):
             return '男'
         else:
             return None
-
+    gender=get_gender(user_info.get('gender'))
     local_db_item = {
         'user_id': user_id,  # 用户id
         'nickname': user_info.get('nickname'),  # 昵称
-        'gender': get_gender(user_info.get('gender')),  # 性别
+        'gender': gender ,# 性别
         'avatar': user_info.get('images'),  # 头像
         'desc': user_info.get('desc'),  # 个人描述
         'ip_location': user_info.get('ipLocation'),  # ip地址
@@ -209,6 +193,7 @@ async def save_creator(user_id: str, creator: Dict):
     }
     utils.logger.info(f"[store.xhs.save_creator] creator:{local_db_item}")
     await XhsStoreFactory.create_store().store_creator(local_db_item)
+    return gender
 
 
 async def update_xhs_note_image(note_id, pic_content, extension_file_name):
@@ -239,3 +224,4 @@ async def update_xhs_note_video(note_id, video_content, extension_file_name):
     """
 
     await XiaoHongShuVideo().store_video({"notice_id": note_id, "video_content": video_content, "extension_file_name": extension_file_name})
+
