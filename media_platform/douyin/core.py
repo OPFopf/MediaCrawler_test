@@ -13,7 +13,6 @@ import os
 import random
 from asyncio import Task
 from typing import Any, Dict, List, Optional, Tuple
-
 from playwright.async_api import (
     BrowserContext,
     BrowserType,
@@ -21,7 +20,6 @@ from playwright.async_api import (
     Playwright,
     async_playwright,
 )
-
 import config
 from base.base_crawler import AbstractCrawler
 from proxy.proxy_ip_pool import IpInfoModel, create_ip_pool
@@ -37,6 +35,7 @@ from .login import DouYinLogin
 
 
 class DouYinCrawler(AbstractCrawler):
+    #print("FKFKsfjkallkafjlksafjslakjflaksdjhfojsadhnfcvoijasfbghoijabgijas")
     context_page: Page
     dy_client: DouYinClient
     browser_context: BrowserContext
@@ -188,6 +187,14 @@ class DouYinCrawler(AbstractCrawler):
             task_list.append(task)
         if len(task_list) > 0:
             await asyncio.wait(task_list)
+    async def batch_update_dy_aweme_comments(self,aweme_id: str, comments: List[Dict]):
+        if not comments:
+            return
+        for comment_item in comments:
+            user_info = comment_item.get("user", {})
+            user_id=user_info.get("sec_uid")
+            gender=await self.get_gender_by_user_id(user_id=user_id)
+            await douyin_store.update_dy_aweme_comment(aweme_id, comment_item, gender)
 
     async def get_comments(self, aweme_id: str, semaphore: asyncio.Semaphore) -> None:
         async with semaphore:
@@ -197,13 +204,19 @@ class DouYinCrawler(AbstractCrawler):
                     aweme_id=aweme_id,
                     crawl_interval=random.random(),
                     is_fetch_sub_comments=config.ENABLE_GET_SUB_COMMENTS,
-                    callback=douyin_store.batch_update_dy_aweme_comments,
+                    callback=self.batch_update_dy_aweme_comments,
                     max_count=config.CRAWLER_MAX_COMMENTS_COUNT_SINGLENOTES,
                 )
                 utils.logger.info(f"[DouYinCrawler.get_comments] aweme_id: {aweme_id} comments have all been obtained and filtered ...")
             except DataFetchError as e:
                 utils.logger.error(f"[DouYinCrawler.get_comments] aweme_id: {aweme_id} get comments failed, error: {e}")
-
+    async def get_gender_by_user_id(self,user_id:str)->str:
+        creator: Dict = await self.dy_client.get_user_info(user_id)
+        user_info = creator.get("user", {})
+        gender_map = {0: "未知", 1: "男", 2: "女"}
+        gender=gender_map.get(user_info.get("gender")),
+        utils.logger.info(f"性别嘎巴别猜吧信息{creator}")
+        return gender
     async def get_creators_and_videos(self) -> None:
         """
         Get the information and videos of the specified creator
@@ -212,11 +225,10 @@ class DouYinCrawler(AbstractCrawler):
         for user_id in config.DY_CREATOR_ID_LIST:
             creator_info: Dict = await self.dy_client.get_user_info(user_id)
             if creator_info:
+                await self.get_gender_by_user_id(user_id=user_id)
                 await douyin_store.save_creator(user_id, creator=creator_info)
-
             # Get all video information of the creator
             all_video_list = await self.dy_client.get_all_user_aweme_posts(sec_user_id=user_id, callback=self.fetch_creator_video_detail)
-
             video_ids = [video_item.get("aweme_id") for video_item in all_video_list]
             await self.batch_get_note_comments(video_ids)
 
@@ -362,7 +374,6 @@ class DouYinCrawler(AbstractCrawler):
             if not url:
                 continue
             content = await self.dy_client.get_aweme_media(url)
-            await asyncio.sleep(random.random())
             if content is None:
                 continue
             extension_file_name = f"{picNum:>03d}.jpeg"
@@ -386,8 +397,8 @@ class DouYinCrawler(AbstractCrawler):
         if not video_download_url:
             return
         content = await self.dy_client.get_aweme_media(video_download_url)
-        await asyncio.sleep(random.random())
         if content is None:
             return
         extension_file_name = f"video.mp4"
         await douyin_store.update_dy_aweme_video(aweme_id, content, extension_file_name)
+
