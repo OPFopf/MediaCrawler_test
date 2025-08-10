@@ -250,7 +250,6 @@ class WeiboCrawler(AbstractCrawler):
             if not url:
                 continue
             content = await self.wb_client.get_note_image(url)
-            await asyncio.sleep(random.random())
             if content != None:
                 extension_file_name = url.split(".")[-1]
                 await weibo_store.update_weibo_note_image(pic["pid"], content, extension_file_name)
@@ -371,3 +370,4 @@ class WeiboCrawler(AbstractCrawler):
         else:
             await self.browser_context.close()
         utils.logger.info("[WeiboCrawler.close] Browser context closed ...")
+
